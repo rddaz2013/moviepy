@@ -94,7 +94,7 @@ class Clip:
         else:
             return self.make_frame(t)
 
-    def fl(self, fun, apply_to=[] , keep_duration=True):
+    def fl(self, fun, apply_to=None, keep_duration=True):
         """ General processing of a clip.
 
         Returns a new Clip whose frames are a transformation
@@ -131,6 +131,8 @@ class Clip:
         >>> newclip = clip.fl(fl, apply_to='mask')
         
         """
+        if apply_to is None:
+            apply_to = []
 
         #mf = copy(self.make_frame)
         newclip = self.set_make_frame(lambda t: fun(self.get_frame, t))
@@ -153,7 +155,7 @@ class Clip:
 
     
     
-    def fl_time(self, t_func, apply_to=[], keep_duration=False):
+    def fl_time(self, t_func, apply_to=None, keep_duration=False):
         """
         Returns a Clip instance playing the content of the current clip
         but with a modified timeline, time ``t`` being replaced by another
@@ -184,6 +186,8 @@ class Clip:
         >>> newclip = clip.fl_time(lambda: 3-t)
         
         """
+        if apply_to is None:
+            apply_to = []
         
         return self.fl(lambda gf, t: gf(t_func(t)), apply_to,
                                     keep_duration=keep_duration)
@@ -260,6 +264,7 @@ class Clip:
         of the returned clip.
         """
         self.end = t
+        if self.end is None: return
         if self.start is None:
             if self.duration is not None:
                 self.start = max(0, t - newclip.duration)
@@ -378,8 +383,11 @@ class Clip:
         they exist.
         """
 
+        if t_start < 0:  #make this more python like a negative value
+                         #means to move backward from the end of the clip
+           t_start = self.duration + t_start   #remeber t_start is negative
+
         if (self.duration is not None) and (t_start>self.duration):
-        
             raise ValueError("t_start (%.02f) "%t_start +
                              "should be smaller than the clip's "+
                              "duration (%.02f)."%self.duration)
@@ -467,25 +475,16 @@ class Clip:
         """
 
         def generator():
-        
             for t in np.arange(0, self.duration, 1.0/fps):
-        
                 frame = self.get_frame(t)
-        
                 if (dtype is not None) and (frame.dtype != dtype):
-        
                     frame = frame.astype(dtype)
-
                 if with_times:
-        
                     yield t, frame
-        
                 else:
-        
                     yield frame
         
         if progress_bar:
-        
             nframes = int(self.duration*fps)+1
             return tqdm(generator(), total=nframes)
 
